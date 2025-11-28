@@ -68,11 +68,14 @@ async def save_multiple_files(
     project_id: str,
     category: str
 ) -> List[dict]:
-    """Save multiple uploaded files"""
+    """Save multiple uploaded files - supports all file types"""
     saved_files = []
     for file in files:
         if file.size and file.size > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
             continue  # Skip files that are too large
+        
+        # Accept all file types (images, PDFs, archives, documents, presentations, etc.)
+        # No file type restrictions - clients can submit any kind of data
         file_data = await save_upload_file(file, project_id, category)
         saved_files.append(file_data)
     return saved_files

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_serializer
 from typing import Optional, List
 from datetime import datetime
 from app.models import UserRole, ProjectStatus, PaymentStatus
@@ -17,12 +17,24 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: str
-    workspace_id: str
-    created_at: datetime
+    workspaceId: str
+    createdAt: datetime
 
     class Config:
         from_attributes = True
         populate_by_name = True
+        
+    @classmethod
+    def from_user_model(cls, user):
+        """Convert User model to UserResponse with camelCase fields"""
+        return cls(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role,
+            workspaceId=user.workspace_id,
+            createdAt=user.created_at or datetime.now()
+        )
 
 
 # Workspace Schemas

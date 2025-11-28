@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File as FastAPIFile
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File as FastAPIFile, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List, Optional
@@ -167,7 +167,10 @@ async def get_project(
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
-    project_data: ProjectCreate,
+    title: str = Form(...),
+    description: str = Form(...),
+    amount: float = Form(...),
+    deadline: str = Form(...),
     files: List[UploadFile] = FastAPIFile([]),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -179,6 +182,12 @@ async def create_project(
             detail="Only clients can create projects"
         )
     
+    # Parse deadline
+    try:
+        deadline_dt = datetime.fromisoformat(deadline.replace('Z', '+00:00'))
+    except:
+        deadline_dt = datetime.fromisoformat(deadline)
+    
     project_id = generate_id("p-")
     
     # Create project
@@ -186,10 +195,10 @@ async def create_project(
         id=project_id,
         workspace_id=current_user.workspace_id,
         client_id=current_user.id,
-        title=project_data.title,
-        description=project_data.description,
-        amount=project_data.amount,
-        deadline=project_data.deadline,
+        title=title,
+        description=description,
+        amount=amount,
+        deadline=deadline_dt,
         status=ProjectStatus.PENDING,
         payment_status=PaymentStatus.UNPAID
     )
@@ -237,11 +246,18 @@ async def update_project_status(
             detail="Project not found"
         )
     
-    # Check permissions
-    if current_user.role == UserRole.CLIENT and status_update.status != ProjectStatus.COMPLETED:
+    # Check permissions - only admins can change project status
+    if current_user.role == UserRole.CLIENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Clients can only mark projects as completed"
+            detail="Only admins can change project status"
+        )
+    
+    # Only admins can mark projects as completed
+    if status_update.status == ProjectStatus.COMPLETED and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can mark projects as completed"
         )
     
     project.status = status_update.status
@@ -352,12 +368,12 @@ async def add_comment(
 @router.post("/{project_id}/updates", response_model=ProjectUpdateResponse, status_code=status.HTTP_201_CREATED)
 async def add_project_update(
     project_id: str,
-    update_data: ProjectUpdateCreate,
+    text: str = Form(...),
     files: List[UploadFile] = FastAPIFile([]),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Add a project update (Client only)"""
+    """Add a project update (Client only) - supports all file types"""
     if current_user.role != UserRole.CLIENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -376,10 +392,14 @@ async def add_project_update(
             detail="Project not found"
         )
     
+    # If project is delivered and client adds an update, change status back to in_progress
+    if project.status == ProjectStatus.DELIVERED:
+        project.status = ProjectStatus.IN_PROGRESS
+    
     update = ProjectUpdate(
         id=generate_id("up-"),
         project_id=project_id,
-        text=update_data.text,
+        text=text,
         is_read=False
     )
     db.add(update)
@@ -403,6 +423,7 @@ async def add_project_update(
     
     db.commit()
     db.refresh(update)
+    db.refresh(project)
     
     # Get update files
     update_files = [

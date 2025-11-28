@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -27,10 +27,18 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         data={"sub": user.id}, expires_delta=access_token_expires
     )
     
+    user_data = {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+        "workspaceId": user.workspace_id,
+        "createdAt": user.created_at.isoformat() if user.created_at else datetime.now().isoformat()
+    }
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": UserResponse.model_validate(user)
+        "user": user_data
     }
 
 
@@ -84,9 +92,17 @@ async def register_workspace(workspace_data: WorkspaceCreate, db: Session = Depe
         data={"sub": user.id}, expires_delta=access_token_expires
     )
     
+    user_data = {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+        "workspaceId": user.workspace_id,
+        "createdAt": user.created_at.isoformat() if user.created_at else datetime.now().isoformat()
+    }
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": UserResponse.model_validate(user)
+        "user": user_data
     }
 
