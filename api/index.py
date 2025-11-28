@@ -7,7 +7,16 @@ AWS Lambda/API Gateway events to ASGI-compatible requests.
 """
 import sys
 import os
+import traceback
+import logging
 from pathlib import Path
+
+# Configure logging to show in Vercel function logs
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Ensure the parent directory is in Python path for imports
 backend_root = Path(__file__).parent.parent
@@ -23,18 +32,33 @@ try:
     
     # Create ASGI adapter for Vercel
     # lifespan="off" disables FastAPI lifespan events which can cause issues in serverless
-    handler = Mangum(app, lifespan="off", log_level="warning")
+    handler = Mangum(
+        app, 
+        lifespan="off", 
+        log_level="info"  # Changed to info to see more details in Vercel logs
+    )
+    
+    logger.info("FastAPI application and Mangum handler initialized successfully")
+    
 except Exception as e:
-    # If import fails, create a simple error handler
+    # If import fails, create a simple error handler that logs the issue
+    error_detail = traceback.format_exc()
+    logger.error(f"Failed to initialize application:\n{error_detail}")
+    
     import json
     
     def handler(event, context):
+        """Error handler when application fails to initialize"""
+        logger.error(f"Handler called but app initialization failed. Event: {event}")
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({
                 "error": "Failed to initialize application",
-                "detail": str(e)
+                "detail": str(e),
+                "message": "Check Vercel function logs for full traceback"
             })
         }
+    
+    logger.error("Using fallback error handler due to initialization failure")
 
