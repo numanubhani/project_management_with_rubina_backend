@@ -1,17 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.database import engine, Base
 from app.routers import auth, users, projects, files, finance, workspaces
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
+import os
 
 app = FastAPI(
     title="FlowSpace API",
     description="Project Management System Backend API",
     version="1.0.0"
 )
+
+# Database initialization is handled lazily on first request
+# This prevents errors during cold starts in serverless environments
+# Tables should be created via migrations (Alembic) or managed externally
+# DO NOT create tables automatically in serverless - use migrations instead
 
 # CORS middleware
 app.add_middleware(

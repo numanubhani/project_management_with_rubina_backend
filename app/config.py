@@ -26,6 +26,12 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Create upload directory if it doesn't exist
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+# Create upload directory if it doesn't exist and we're not in serverless
+# In serverless environments (like Vercel), use cloud storage instead
+if os.getenv("VERCEL") is None:
+    try:
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    except Exception as e:
+        # Log but don't fail - might be read-only filesystem
+        print(f"Could not create upload directory: {str(e)}")
 

@@ -9,4 +9,5 @@ python-multipart==0.0.12
 python-dotenv==1.0.1
 alembic==1.13.2
 psycopg2-binary==2.9.10
+mangum==0.17.0
 
