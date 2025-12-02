@@ -9,8 +9,37 @@ import os
 import logging
 import traceback
 from datetime import datetime
+import subprocess
 
-# Configure logging
+# ---------------------------------------------------------
+# RUN ALEMBIC MIGRATIONS AT SERVER STARTUP (Render only)
+# ---------------------------------------------------------
+
+def run_migrations():
+    """Triggers Alembic migrations safely on container startup."""
+    try:
+        logging.info("Running Alembic migrations...")
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logging.error("Migration failed:")
+            logging.error(result.stderr)
+        else:
+            logging.info("Migrations applied successfully.")
+            logging.info(result.stdout)
+
+    except Exception as e:
+        logging.error(f"Migration error: {e}")
+
+
+# ---------------------------------------------------------
+# LOGGING SETUP
+# ---------------------------------------------------------
+
 logging.basicConfig(
     level=logging.INFO if os.getenv("VERCEL") else logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -23,12 +52,24 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Database initialization is handled lazily on first request
-# This prevents errors during cold starts in serverless environments
-# Tables should be created via migrations (Alembic) or managed externally
-# DO NOT create tables automatically in serverless - use migrations instead
+# ---------------------------------------------------------
+# STARTUP EVENT → RUN MIGRATIONS (NON-SERVERLESS ONLY)
+# ---------------------------------------------------------
 
-# CORS middleware
+@app.on_event("startup")
+async def startup_event():
+    """
+    Run migrations only on platforms like Render.
+    Skip on Vercel (serverless) to avoid cold-start crashes.
+    """
+    if not os.getenv("VERCEL"):
+        run_migrations()
+
+
+# ---------------------------------------------------------
+# CORS
+# ---------------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -37,25 +78,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request logging middleware for debugging
+# ---------------------------------------------------------
+# REQUEST LOGGING MIDDLEWARE
+# ---------------------------------------------------------
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log all requests for debugging in serverless environments"""
     start_time = datetime.now()
     path = request.url.path
     method = request.method
-    
+
     try:
         response = await call_next(request)
         process_time = (datetime.now() - start_time).total_seconds()
-        
-        # Log request details (useful for Vercel function logs)
+
         logger.info(
             f"{method} {path} - Status: {response.status_code} - "
             f"Time: {process_time:.3f}s"
         )
-        
+
         return response
+
     except Exception as e:
         process_time = (datetime.now() - start_time).total_seconds()
         logger.error(
@@ -64,10 +107,13 @@ async def log_requests(request: Request, call_next):
         )
         raise
 
-# Global exception handlers
+
+# ---------------------------------------------------------
+# GLOBAL EXCEPTION HANDLERS
+# ---------------------------------------------------------
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Handle HTTP exceptions with proper JSON responses"""
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -79,7 +125,6 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle validation errors with detailed messages"""
     logger.warning(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -92,17 +137,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Catch-all exception handler to prevent 500 errors from crashing"""
     error_detail = str(exc)
     error_traceback = traceback.format_exc()
-    
-    # Log the full error with traceback (visible in Vercel function logs)
+
     logger.error(
         f"Unhandled exception on {request.method} {request.url.path}:\n"
         f"{error_traceback}"
     )
-    
-    # Return a proper error response instead of crashing
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
@@ -113,7 +155,11 @@ async def general_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# Include routers
+
+# ---------------------------------------------------------
+# ROUTERS
+# ---------------------------------------------------------
+
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(projects.router)
@@ -121,6 +167,10 @@ app.include_router(files.router)
 app.include_router(finance.router)
 app.include_router(workspaces.router)
 
+
+# ---------------------------------------------------------
+# ROOT & HEALTH CHECK
+# ---------------------------------------------------------
 
 @app.get("/")
 async def root():
@@ -130,15 +180,10 @@ async def root():
         "docs": "/docs"
     }
 
-
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-
 @app.get("/favicon.ico")
 async def favicon():
-    """Handle favicon requests to prevent 500 errors"""
-    # Return 204 No Content instead of 404 to prevent browser retries
     return Response(status_code=204)
-
