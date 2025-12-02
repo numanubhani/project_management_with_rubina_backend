@@ -1,136 +1,131 @@
-# FlowSpace Backend API
+# FlowSpace API - Django Backend
 
-A complete FastAPI backend for the FlowSpace project management system.
+Project Management System Backend API built with Django REST Framework.
 
 ## Features
 
-- 🔐 JWT Authentication
-- 👥 User & Workspace Management
-- 📁 Project Management (CRUD)
-- 💬 Comments System
-- 📤 File Upload/Download
-- 💰 Payment Tracking
-- 📊 Dashboard Statistics
-- 🔒 Role-Based Access Control (Admin/Client)
+- ✅ JWT Authentication
+- ✅ Workspace Management
+- ✅ Project Management
+- ✅ File Upload/Download
+- ✅ Comments & Updates
+- ✅ Finance Tracking
+- ✅ Swagger/OpenAPI Documentation
 
-## Tech Stack
+## Setup
 
-- **FastAPI** - Modern Python web framework
-- **SQLAlchemy** - ORM for database operations
-- **PostgreSQL/SQLite** - Database
-- **JWT** - Authentication
-- **bcrypt** - Password hashing
+### 1. Install Dependencies
 
-## Installation
+```bash
+pip install -r requirements.txt
+```
 
-1. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+### 2. Environment Variables
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. **Run database migrations** (if using Alembic)
-   ```bash
-   alembic upgrade head
-   ```
-
-5. **Run the server**
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
-
-## API Documentation
-
-Once the server is running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-## Environment Variables
+Create a `.env` file:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/flowspace_db
 SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
+DEBUG=True
+DATABASE_URL=sqlite:///./db.sqlite3
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE_MB=50
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
+
+### 3. Run Migrations
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 4. Create Superuser (Optional)
+
+```bash
+python manage.py createsuperuser
+```
+
+### 5. Run Server
+
+```bash
+python manage.py runserver
+```
+
+The API will be available at `http://localhost:8000`
+
+## API Documentation
+
+- **Swagger UI**: http://localhost:8000/api/docs/
+- **ReDoc**: http://localhost:8000/api/redoc/
+- **Schema**: http://localhost:8000/api/schema/
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/register` - Register workspace and admin
+- `POST /api/auth/login` - Login
+- `POST /api/auth/register` - Register workspace
 
 ### Users
-- `GET /api/users/` - Get all users in workspace
-- `POST /api/users/` - Create new user (Admin only)
+- `GET /api/users/` - Get all users
+- `POST /api/users/create` - Create user (Admin only)
 - `GET /api/users/me` - Get current user
-- `PUT /api/users/me` - Update profile
+- `PUT /api/users/me/update` - Update profile
 
 ### Projects
 - `GET /api/projects/` - Get all projects
-- `GET /api/projects/dashboard/stats` - Get dashboard statistics
-- `GET /api/projects/{id}` - Get project details
-- `POST /api/projects/` - Create project (Client only)
-- `PUT /api/projects/{id}/status` - Update project status
-- `POST /api/projects/{id}/delivery` - Upload delivery files (Admin)
+- `POST /api/projects/` - Create project
+- `GET /api/projects/{id}` - Get project
+- `PUT /api/projects/{id}/status` - Update status
+- `POST /api/projects/{id}/delivery` - Upload delivery
 - `POST /api/projects/{id}/comments` - Add comment
-- `POST /api/projects/{id}/updates` - Add project update (Client)
-- `PUT /api/projects/{id}/payment/clear` - Mark payment cleared (Client)
-- `PUT /api/projects/{id}/payment/approve` - Approve payment (Admin)
+- `POST /api/projects/{id}/updates` - Add update
+
+### Workspaces
+- `GET /api/workspaces/me` - Get current workspace
+- `PUT /api/workspaces/me/update` - Update workspace
+- `GET /api/workspaces/me/stats` - Get stats
 
 ### Files
 - `GET /api/files/{project_id}/{category}/{filename}` - Download file
 
 ### Finance
-- `GET /api/finance/history` - Get financial history
-- `GET /api/finance/stats` - Get financial statistics
+- `GET /api/finance/history` - Get finance history
+- `GET /api/finance/stats` - Get finance stats
 
-## Database Models
+## Frontend Connection
 
-- **User** - Users with roles (Admin/Client)
-- **Workspace** - Workspace/organization
-- **Project** - Projects with status and payment tracking
-- **ProjectFile** - File metadata
-- **Comment** - Project comments
-- **ProjectUpdate** - Client updates for projects
+The backend is configured to accept requests from:
+- `http://localhost:3000` (React default)
+- `http://localhost:5173` (Vite default)
 
-## Security
+Update `CORS_ORIGINS` in `.env` to add your frontend URL.
 
-- Passwords are hashed using bcrypt
-- JWT tokens for authentication
-- Role-based access control
-- File upload size limits
-- CORS protection
+## Authentication
 
-## Development
+All endpoints (except login/register) require JWT authentication.
 
-For development with auto-reload:
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+Include the token in the Authorization header:
+```
+Authorization: Bearer <your-access-token>
 ```
 
-## Production
+## Database
 
-For production, use a production ASGI server like:
-- Gunicorn with Uvicorn workers
-- Docker deployment
-- Environment-specific configurations
+By default, uses SQLite. For production, use PostgreSQL:
 
-## License
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+```
 
-Private project
+## Deployment
 
+For production deployment:
+
+1. Set `DEBUG=False`
+2. Set a strong `SECRET_KEY`
+3. Configure proper `CORS_ORIGINS`
+4. Use PostgreSQL database
+5. Set up static file serving
+6. Configure proper security settings

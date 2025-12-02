@@ -1,24 +1,17 @@
-# FastAPI and ASGI server
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+# Django and core dependencies
+Django>=4.2.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.3.0
+
+# JWT Authentication
+djangorestframework-simplejwt>=5.3.0
+
+# Swagger/OpenAPI Documentation
+drf-spectacular>=0.26.0
 
 # Database
-sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.9  # PostgreSQL driver (optional, only needed for PostgreSQL)
-alembic>=1.13.0  # Database migrations
+dj-database-url>=2.1.0  # For DATABASE_URL parsing
 
-# Data validation and settings
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-email-validator>=2.0.0  # Required for EmailStr validation
-
-# Authentication and security
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-
-# File uploads
-python-multipart>=0.0.6
-
-# Serverless/Vercel adapter
-mangum>=0.17.0
-
+# Utilities
+python-dotenv>=1.0.0
