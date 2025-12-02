@@ -12,32 +12,7 @@ from datetime import datetime
 import subprocess
 
 # ---------------------------------------------------------
-# RUN ALEMBIC MIGRATIONS AT SERVER STARTUP (Render only)
-# ---------------------------------------------------------
-
-def run_migrations():
-    """Triggers Alembic migrations safely on container startup."""
-    try:
-        logging.info("Running Alembic migrations...")
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode != 0:
-            logging.error("Migration failed:")
-            logging.error(result.stderr)
-        else:
-            logging.info("Migrations applied successfully.")
-            logging.info(result.stdout)
-
-    except Exception as e:
-        logging.error(f"Migration error: {e}")
-
-
-# ---------------------------------------------------------
-# LOGGING SETUP
+# LOGGING SETUP (must be before run_migrations)
 # ---------------------------------------------------------
 
 logging.basicConfig(
@@ -45,6 +20,58 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------
+# RUN ALEMBIC MIGRATIONS AT SERVER STARTUP (Render only)
+# ---------------------------------------------------------
+
+def run_migrations():
+    """Triggers Alembic migrations safely on container startup."""
+    try:
+        logger.info("=" * 60)
+        logger.info("Starting Alembic database migrations...")
+        logger.info("=" * 60)
+        
+        # Get project root directory (parent of app directory)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        logger.info(f"Running migrations from: {project_root}")
+        
+        # Run alembic upgrade head
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            cwd=project_root  # Run from project root where alembic.ini is located
+        )
+
+        if result.returncode != 0:
+            logger.error("=" * 60)
+            logger.error("MIGRATION FAILED!")
+            logger.error("=" * 60)
+            logger.error(f"Exit code: {result.returncode}")
+            logger.error("STDERR:")
+            logger.error(result.stderr)
+            logger.error("STDOUT:")
+            logger.error(result.stdout)
+            logger.error("=" * 60)
+            # Don't raise exception - let the app start anyway
+            # This allows you to fix migration issues without breaking the deployment
+        else:
+            logger.info("=" * 60)
+            logger.info("Migrations applied successfully!")
+            logger.info("=" * 60)
+            if result.stdout:
+                logger.info("Migration output:")
+                logger.info(result.stdout)
+            logger.info("=" * 60)
+
+    except FileNotFoundError:
+        logger.warning("Alembic not found. Make sure 'alembic' is installed and in PATH.")
+        logger.warning("Skipping migrations. Tables may need to be created manually.")
+    except Exception as e:
+        logger.error(f"Unexpected migration error: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Don't raise - allow app to start
 
 app = FastAPI(
     title="FlowSpace API",
