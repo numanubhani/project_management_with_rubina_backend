@@ -34,8 +34,14 @@ class UserManager(BaseUserManager):
         if not email:
             raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
+        
+        # Handle ID generation
+        if 'id' not in extra_fields:
+            extra_fields['id'] = generate_id("u-")
+        
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        if password:
+            user.set_password(password)
         user.save(using=self._db)
         return user
 
@@ -174,5 +180,51 @@ class ProjectUpdate(models.Model):
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = generate_id("up-")
+        super().save(*args, **kwargs)
+
+
+class CollaboratorInvitation(models.Model):
+    id = models.CharField(max_length=255, primary_key=True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='collaborator_invitations')
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_invitations')
+    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_invitations')
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ], default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'collaborator_invitations'
+        unique_together = ['project', 'invited_user']
+
+    def __str__(self):
+        return f"Invitation for {self.invited_user.email} to {self.project.title}"
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_id("inv-")
+        super().save(*args, **kwargs)
+
+
+class Collaborator(models.Model):
+    id = models.CharField(max_length=255, primary_key=True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='collaborators')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collaborations')
+    added_at = models.DateTimeField(auto_now_add=True)
+    invitation = models.OneToOneField(CollaboratorInvitation, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        db_table = 'collaborators'
+        unique_together = ['project', 'user']
+
+    def __str__(self):
+        return f"{self.user.email} on {self.project.title}"
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_id("col-")
         super().save(*args, **kwargs)
 

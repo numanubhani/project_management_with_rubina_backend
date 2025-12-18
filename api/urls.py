@@ -15,6 +15,9 @@ from .views import (
     download_file,
     # Finance
     get_finance_history, get_finance_stats,
+    # Collaborators
+    get_project_collaborators, invite_collaborator, respond_to_invitation,
+    get_my_invitations, remove_collaborator,
 )
 
 urlpatterns = [
@@ -30,7 +33,7 @@ urlpatterns = [
     
     # Projects
     path('projects/', get_projects, name='get_projects'),
-    path('projects/', create_project, name='create_project'),
+    path('projects/create', create_project, name='create_project'),
     path('projects/dashboard/stats', get_dashboard_stats, name='dashboard_stats'),
     path('projects/<str:project_id>', get_project, name='get_project'),
     path('projects/<str:project_id>/status', update_project_status, name='update_status'),
@@ -39,6 +42,7 @@ urlpatterns = [
     path('projects/<str:project_id>/updates', add_project_update, name='add_update'),
     path('projects/<str:project_id>/payment/clear', mark_payment_cleared, name='clear_payment'),
     path('projects/<str:project_id>/payment/approve', approve_payment, name='approve_payment'),
+    path('projects/updates/unread', get_unread_updates, name='unread_updates_all'),
     path('projects/<str:project_id>/updates/unread', get_unread_updates, name='unread_updates'),
     
     # Workspaces
@@ -54,5 +58,12 @@ urlpatterns = [
     # Finance
     path('finance/history', get_finance_history, name='finance_history'),
     path('finance/stats', get_finance_stats, name='finance_stats'),
+    
+    # Collaborators
+    path('projects/<str:project_id>/collaborators', get_project_collaborators, name='get_collaborators'),
+    path('projects/<str:project_id>/collaborators/invite', invite_collaborator, name='invite_collaborator'),
+    path('projects/<str:project_id>/collaborators/<str:collaborator_id>', remove_collaborator, name='remove_collaborator'),
+    path('collaborators/invitations', get_my_invitations, name='get_my_invitations'),
+    path('collaborators/invitations/<str:invitation_id>/respond', respond_to_invitation, name='respond_invitation'),
 ]
 

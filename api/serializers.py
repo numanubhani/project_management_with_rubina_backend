@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     User, Workspace, Project, ProjectFile, Comment, ProjectUpdate,
-    UserRole, ProjectStatus, PaymentStatus
+    UserRole, ProjectStatus, PaymentStatus, Collaborator, CollaboratorInvitation
 )
 
 User = get_user_model()
@@ -71,6 +71,58 @@ class ProjectUpdateCreateSerializer(serializers.Serializer):
     text = serializers.CharField()
 
 
+class CollaboratorSerializer(serializers.ModelSerializer):
+    userId = serializers.CharField(source='user_id', read_only=True)
+    userName = serializers.CharField(source='user.name', read_only=True)
+    userEmail = serializers.CharField(source='user.email', read_only=True)
+    addedAt = serializers.DateTimeField(source='added_at', read_only=True)
+
+    class Meta:
+        model = Collaborator
+        fields = ['id', 'userId', 'userName', 'userEmail', 'addedAt']
+        read_only_fields = ['id', 'userId', 'userName', 'userEmail', 'addedAt']
+
+
+class CollaboratorInvitationSerializer(serializers.ModelSerializer):
+    projectId = serializers.CharField(source='project_id', read_only=True)
+    projectTitle = serializers.CharField(source='project.title', read_only=True)
+    invitedById = serializers.CharField(source='invited_by_id', read_only=True)
+    invitedByName = serializers.CharField(source='invited_by.name', read_only=True)
+    invitedUserId = serializers.CharField(source='invited_user_id', read_only=True)
+    invitedUserName = serializers.CharField(source='invited_user.name', read_only=True)
+    invitedUserEmail = serializers.CharField(source='invited_user.email', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    respondedAt = serializers.DateTimeField(source='responded_at', read_only=True, allow_null=True)
+
+    class Meta:
+        model = CollaboratorInvitation
+        fields = [
+            'id', 'projectId', 'projectTitle', 'invitedById', 'invitedByName',
+            'invitedUserId', 'invitedUserName', 'invitedUserEmail', 'status',
+            'createdAt', 'respondedAt'
+        ]
+        read_only_fields = [
+            'id', 'projectId', 'projectTitle', 'invitedById', 'invitedByName',
+            'invitedUserId', 'invitedUserName', 'invitedUserEmail', 'createdAt', 'respondedAt'
+        ]
+
+
+class CollaboratorInvitationCreateSerializer(serializers.Serializer):
+    user_id = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
+    
+    def validate(self, data):
+        if not data.get('user_id') and not data.get('email'):
+            raise serializers.ValidationError("Either user_id or email must be provided")
+        if data.get('user_id') and data.get('email'):
+            raise serializers.ValidationError("Provide either user_id or email, not both")
+        return data
+
+
+class CollaboratorInvitationResponseSerializer(serializers.Serializer):
+    accept = serializers.BooleanField()
+
+
 class ProjectSerializer(serializers.ModelSerializer):
     workspaceId = serializers.CharField(source='workspace_id', read_only=True)
     clientId = serializers.CharField(source='client_id', read_only=True)
@@ -79,15 +131,18 @@ class ProjectSerializer(serializers.ModelSerializer):
     paidAt = serializers.DateTimeField(source='paid_at', read_only=True, allow_null=True)
     clientFiles = FileDataSerializer(many=True, read_only=True)
     deliveryFiles = FileDataSerializer(many=True, read_only=True)
+    paymentFiles = FileDataSerializer(many=True, read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     updates = ProjectUpdateSerializer(many=True, read_only=True)
+    collaborators = CollaboratorSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
         fields = [
             'id', 'workspaceId', 'clientId', 'title', 'description', 'amount',
             'createdAt', 'deadline', 'status', 'paymentStatus', 'paidAt',
-            'clientFiles', 'deliveryFiles', 'comments', 'updates'
+            'clientFiles', 'deliveryFiles', 'paymentFiles', 'comments', 'updates',
+            'collaborators'
         ]
         read_only_fields = ['id', 'createdAt']
 

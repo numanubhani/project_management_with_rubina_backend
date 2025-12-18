@@ -76,3 +76,4 @@ POST http://localhost:8000/api/auth/login
 
 **Backend is ready to connect with your frontend!** 🚀
 
+
